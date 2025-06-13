@@ -8,15 +8,17 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import requests
-    return (requests,)
+    import json
+    return json, requests
 
 
 @app.cell
-def _(requests):
+def _(json, requests):
     # Simple ocid request
     _url = "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages/ocds-h6vhtk-0547f4"
     _response = requests.get(_url)
     data1 = _response.json()
+    data1 = json.dumps(data1)
     data1  # Display the JSON response
     return
 
@@ -52,6 +54,13 @@ def _(data_2):
     # Test on a sample release
     sample_release = data_2['releases'][0]
     extract_tender_info(sample_release)
+    return
+
+
+@app.cell
+def _(data_2):
+    sample_release_1 = data_2['releases']
+    sample_release_1
     return
 
 
