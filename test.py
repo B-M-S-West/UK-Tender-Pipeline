@@ -9,7 +9,10 @@ def _():
     import marimo as mo
     import requests
     import json
-    return json, requests
+    import os
+    from pyairtable import Api
+    from dotenv import load_dotenv
+    return Api, json, load_dotenv, os, requests
 
 
 @app.cell
@@ -61,6 +64,21 @@ def _(data_2):
 def _(data_2):
     sample_release_1 = data_2['releases']
     sample_release_1
+    return
+
+
+@app.cell
+def _(Api, load_dotenv, os):
+    load_dotenv()
+    AIRTABLE_ACCESS_TOKEN = os.getenv("AIRTABLE_ACCESS_TOKEN")
+    api = Api(AIRTABLE_ACCESS_TOKEN)
+    table = api.table('appDayUWHh0C1xqxI', 'tblg9hC30kY7LBK8Y')
+    table.all()
+    return
+
+
+@app.cell
+def _():
     return
 
 
