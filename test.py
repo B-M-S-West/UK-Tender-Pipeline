@@ -82,7 +82,7 @@ def _(data_2):
 def _(datetime):
     def parse_date(date_string):
         if date_string:
-            return datetime.fromisoformat(date_string.replace('Z', '+00:00')).strftime('%d-%m-%y')
+            return datetime.fromisoformat(date_string.replace('Z', '+00:00')).strftime('%m/%d/%Y')
         return None
     return (parse_date,)
 
@@ -117,14 +117,14 @@ def _(parse_date):
             "Title": tender.get('title', ''),
             "Description": tender.get('description', ''),
             "Buyer Name": buyer.get('name', ''),
-            "Value Amount": value_info.get('currency', '') if value_info else None,
+            "Value Amount": value_info.get('amount', '') if value_info else None,
             "Currency": value_info.get('currency', '') if value_info else '',
-            "Tender End Date": parse_date(tender_period.get('date')), 
-            "Publised Date": parse_date(release.get('date')), 
+            "Tender End Date": parse_date(tender_period.get('endDate')), 
+            "Published Date": parse_date(release.get('date')), 
             "Status": tender.get('status', ''),
             "Submission URL": tender.get('submissionMethodDetails', ''),
             "CPV Codes": cpv_ids,
-            "CPV description": cpv_descs
+            "CPV Descriptions": cpv_descs
         }
     return (extract_single_record,)
 
