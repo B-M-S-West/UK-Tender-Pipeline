@@ -17,6 +17,16 @@ def _():
 
 
 @app.cell
+def _(Api, load_dotenv, os):
+    load_dotenv()
+    AIRTABLE_ACCESS_TOKEN = os.getenv("AIRTABLE_ACCESS_TOKEN")
+    api = Api(AIRTABLE_ACCESS_TOKEN)
+    table = api.table('appDayUWHh0C1xqxI', 'tblg9hC30kY7LBK8Y')
+    table.all()
+    return (table,)
+
+
+@app.cell
 def _(json, requests):
     # Simple ocid request
     _url = "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages/ocds-h6vhtk-0547f4"
@@ -66,16 +76,6 @@ def _(data_2):
     sample_release_1 = data_2['releases']
     sample_release_1
     return
-
-
-@app.cell
-def _(Api, load_dotenv, os):
-    load_dotenv()
-    AIRTABLE_ACCESS_TOKEN = os.getenv("AIRTABLE_ACCESS_TOKEN")
-    api = Api(AIRTABLE_ACCESS_TOKEN)
-    table = api.table('appDayUWHh0C1xqxI', 'tblg9hC30kY7LBK8Y')
-    table.all()
-    return (table,)
 
 
 @app.cell
@@ -130,14 +130,14 @@ def _(parse_date):
 
 
 @app.cell
-def _(table, update):
+def _(table):
     def upsert_tender_record(record):
         ocid = record['OCID']
         existing = table.all(formula=f"{{OCID}} = '{ocid}'")
         if existing:
             record_id = existing[0]['id']
             try:
-                table:update(record_id, record)
+                table.update(record_id, record)
                 print(f"Updated: {record['Title']}")
             except Exception as e:
                 print(f"Error updating {record['Title']}: {e}")
