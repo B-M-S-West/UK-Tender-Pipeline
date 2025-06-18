@@ -111,9 +111,11 @@ def _(parse_date):
         tender_period = tender.get('tenderPeriod', {})
         buyer = release.get('buyer', {})
         cpv_ids, cpv_descs = extract_cpv_info(tender)
+        release_id = release.get('id', '')
+        notice_url = f"https://www.find-tender.service.gov.uk/Notice/{release_id}" if release_id else ''
         return {
             "OCID": release.get('ocid'),
-            "Release ID": release.get('id'),
+            "Release ID": release_id,
             "Title": tender.get('title', ''),
             "Description": tender.get('description', ''),
             "Buyer Name": buyer.get('name', ''),
@@ -124,7 +126,8 @@ def _(parse_date):
             "Status": tender.get('status', ''),
             "Submission URL": tender.get('submissionMethodDetails', ''),
             "CPV Codes": cpv_ids,
-            "CPV Descriptions": cpv_descs
+            "CPV Descriptions": cpv_descs,
+            "Notice URL": notice_url
         }
     return (extract_single_record,)
 
