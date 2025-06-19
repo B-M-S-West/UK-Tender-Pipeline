@@ -4,6 +4,10 @@ import os
 from pyairtable import Api
 from dotenv import load_dotenv
 from datetime import datetime
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 AIRTABLE_ACCESS_TOKEN = os.getenv("AIRTABLE_ACCESS_TOKEN")
@@ -11,6 +15,8 @@ api = Api(AIRTABLE_ACCESS_TOKEN)
 table = api.table('appDayUWHh0C1xqxI', 'tblg9hC30kY7LBK8Y')
 table.all()
 
+
+# The bellow will need to be update into a function and params for daily
 params = {
     "updatedFrom": "2025-06-01T00:00:00",
     "updatedTo": "2025-06-13T23:59:59",
@@ -18,13 +24,21 @@ params = {
     "limit": 5
 }
 url = "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages"
-response = requests.get(url, params=params)
-data = response.json()
+
+try:
+    response = requests.get(url, params=params, timeout=30)
+    response.raise_for_status()
+    data = response.json()
+except requests.exceptions.RequestException as e:
+    logger.error(f'Error fetching data from API: {e}')
+    logger.warning("Skipping processing due to API error.")
+
 
 def parse_date(date_string):
     if date_string:
         return datetime.fromisoformat(date_string.replace('Z', '+00:00')).strftime('%m/%d/%Y')
     return None
+
 
 def extract_cpv_info(tender):
     cpv_ids = []
@@ -39,6 +53,7 @@ def extract_cpv_info(tender):
     cpv_ids = ', '.join(sorted(set(cpv_ids)))
     cpv_descs = ', '.join(sorted(set(cpv_descs)))
     return cpv_ids, cpv_descs
+
 
 def extract_single_record(release):
     tender = release.get('tender', {})
@@ -72,20 +87,22 @@ def upsert_tender_record(record):
         record_id = existing[0]['id']
         try:
             table.update(record_id, record)
-            print(f"Updated: {record['Title']}")
+            logger.info(f"Updated: {record['Title']}")
         except Exception as e:
-            print(f"Error updating {record['Title']}: {e}")
+            logger.error(f"Error updating {record['Title']}: {e}")
     else:
         try:
             table.create(record)
-            print(f"Created: {record['Title']}")
+            logger.info(f"Created: {record['Title']}")
         except Exception as e:
-            print(f"Error creating {record['Title']}: {e}")
+            logger.error(f"Error creating {record['Title']}: {e}")
 
 def process_releases(json_response):
     releases = json_response.get('releases', [])
+    logger.info(f"Processing {len(releases)} releases.")
     for release in releases:
         record = extract_single_record(release)
         upsert_tender_record(record)
+    logger.info("Processing complete.")
 
 process_releases(data)
