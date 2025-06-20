@@ -1,1 +1,5 @@
 .env
+logs/
+__marimo__/
+.venv/
+.env.*
