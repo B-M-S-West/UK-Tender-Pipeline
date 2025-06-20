@@ -1,108 +1,67 @@
-import requests
-import json
-import os
-from pyairtable import Api
-from dotenv import load_dotenv
-from datetime import datetime
 import logging
+import sys
+import os
+from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from api_client import TenderAPIClient
+from data_processor import TenderDataProcessor
+from airtable_manager import AirtableManager
 
 load_dotenv()
-AIRTABLE_ACCESS_TOKEN = os.getenv("AIRTABLE_ACCESS_TOKEN")
-api = Api(AIRTABLE_ACCESS_TOKEN)
-table = api.table('appDayUWHh0C1xqxI', 'tblg9hC30kY7LBK8Y')
-table.all()
 
+# Setup logging
+log_dir = Path("logs")
+log_dir.mkdir(exist_ok=True)
 
-# The bellow will need to be update into a function and params for daily
-params = {
-    "updatedFrom": "2025-06-01T00:00:00",
-    "updatedTo": "2025-06-13T23:59:59",
-    "stages": "tender",
-    "limit": 5
-}
-url = "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages"
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_dir / f"tender_extract_{datetime.now().strftime('%Y%m%d')}.log"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
-try:
-    response = requests.get(url, params=params, timeout=30)
-    response.raise_for_status()
-    data = response.json()
-except requests.exceptions.RequestException as e:
-    logger.error(f'Error fetching data from API: {e}')
-    logger.warning("Skipping processing due to API error.")
+logger = logging.getLogger(__name__)
 
+def main():
+    """Main execution function for daily tender extraction"""
+    logger.info("Starting daily tender extraction process")
+    
+    try:
+        # Initialize components
+        api_client = TenderAPIClient()
+        processor = TenderDataProcessor()
+        airtable_manager = AirtableManager()
+        
+        # Fetch data for both stages
+        all_data = api_client.fetch_all_stages()
+        
+        total_processed = 0
+        
+        # Process tender data
+        if all_data["tender"]:
+            tender_records = processor.process_releases(all_data["tender"], "tender")
+            if tender_records:
+                results = airtable_manager.batch_upsert(tender_records, "tender")
+                logger.info(f"Tender processing: {results['success']} success, {results['failed']} failed")
+                total_processed += len(tender_records)
+        
+        # Process pipeline data
+        if all_data["pipeline"]:
+            pipeline_records = processor.process_releases(all_data["pipeline"], "pipeline")
+            if pipeline_records:
+                results = airtable_manager.batch_upsert(pipeline_records, "pipeline")
+                logger.info(f"Pipeline processing: {results['success']} success, {results['failed']} failed")
+                total_processed += len(pipeline_records)
+        
+        logger.info(f"Daily extraction completed. Total records processed: {total_processed}")
+        
+    except Exception as e:
+        logger.error(f"Fatal error in main execution: {e}")
+        sys.exit(1)
 
-def parse_date(date_string):
-    if date_string:
-        return datetime.fromisoformat(date_string.replace('Z', '+00:00')).strftime('%m/%d/%Y')
-    return None
-
-
-def extract_cpv_info(tender):
-    cpv_ids = []
-    cpv_descs = []
-    items = tender.get('items', [])
-    for item in items:
-        for ac in item.get('additionalClassifications', []):
-            if ac.get('scheme') == 'CPV':
-                cpv_ids.append(ac.get('id', ''))
-                cpv_descs.append(ac.get('description', ''))
-    # Remove duplicates and join as comma-separated strings
-    cpv_ids = ', '.join(sorted(set(cpv_ids)))
-    cpv_descs = ', '.join(sorted(set(cpv_descs)))
-    return cpv_ids, cpv_descs
-
-
-def extract_single_record(release):
-    tender = release.get('tender', {})
-    value_info =tender.get('value', {})
-    tender_period = tender.get('tenderPeriod', {})
-    buyer = release.get('buyer', {})
-    cpv_ids, cpv_descs = extract_cpv_info(tender)
-    release_id = release.get('id', '')
-    notice_url = f"https://www.find-tender.service.gov.uk/Notice/{release_id}" if release_id else ''
-    return {
-        "OCID": release.get('ocid'),
-        "Release ID": release_id,
-        "Title": tender.get('title', ''),
-        "Description": tender.get('description', ''),
-        "Buyer Name": buyer.get('name', ''),
-        "Value Amount": value_info.get('amount', '') if value_info else None,
-        "Currency": value_info.get('currency', '') if value_info else '',
-        "Tender End Date": parse_date(tender_period.get('endDate')), 
-        "Published Date": parse_date(release.get('date')), 
-        "Status": tender.get('status', ''),
-        "Submission URL": tender.get('submissionMethodDetails', ''),
-        "CPV Codes": cpv_ids,
-        "CPV Descriptions": cpv_descs,
-        "Notice URL": notice_url
-    }
-
-def upsert_tender_record(record):
-    ocid = record['OCID']
-    existing = table.all(formula=f"{{OCID}} = '{ocid}'")
-    if existing:
-        record_id = existing[0]['id']
-        try:
-            table.update(record_id, record)
-            logger.info(f"Updated: {record['Title']}")
-        except Exception as e:
-            logger.error(f"Error updating {record['Title']}: {e}")
-    else:
-        try:
-            table.create(record)
-            logger.info(f"Created: {record['Title']}")
-        except Exception as e:
-            logger.error(f"Error creating {record['Title']}: {e}")
-
-def process_releases(json_response):
-    releases = json_response.get('releases', [])
-    logger.info(f"Processing {len(releases)} releases.")
-    for release in releases:
-        record = extract_single_record(release)
-        upsert_tender_record(record)
-    logger.info("Processing complete.")
-
-process_releases(data)
+if __name__ == "__main__":
+    main()
