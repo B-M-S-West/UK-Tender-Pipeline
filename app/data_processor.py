@@ -25,8 +25,8 @@ class TenderDataProcessor:
                     cpv_ids.append(ac.get('id', ''))
                     cpv_descs.append(ac.get('description', ''))
         
-        cpv_ids = ', '.join(sorted(set(filter(None, cpv_ids))))
-        cpv_descs = ', '.join(sorted(set(filter(None, cpv_descs))))
+        cpv_ids = sorted(set(filter(None, cpv_ids)))
+        cpv_descs = sorted(set(filter(None, cpv_descs)))
         return cpv_ids, cpv_descs
 
     @staticmethod

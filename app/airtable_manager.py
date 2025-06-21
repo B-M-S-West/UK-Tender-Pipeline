@@ -33,10 +33,10 @@ class AirtableManager:
             existing = self.tender_table.all(formula=f"{{OCID}} = '{ocid}'")
             if existing:
                 record_id = existing[0]['id']
-                self.tender_table.update(record_id, record)
+                self.tender_table.update(record_id, record, typecast=True)
                 logger.info(f"Updated tender: {record.get('Title', 'Unknown')}")
             else:
-                self.tender_table.create(record)
+                self.tender_table.create(record, typecast=True)
                 logger.info(f"Created tender: {record.get('Title', 'Unknown')}")
             return True
         except Exception as e:
@@ -58,10 +58,10 @@ class AirtableManager:
             existing = self.pipeline_table.all(formula=f"{{OCID}} = '{ocid}'")
             if existing:
                 record_id = existing[0]['id']
-                self.pipeline_table.update(record_id, record)
+                self.pipeline_table.update(record_id, record, typecast=True)
                 logger.info(f"Updated pipeline: {record.get('Title', 'Unknown')}")
             else:
-                self.pipeline_table.create(record)
+                self.pipeline_table.create(record, typecast=True)
                 logger.info(f"Created pipeline: {record.get('Title', 'Unknown')}")
             return True
         except Exception as e:
