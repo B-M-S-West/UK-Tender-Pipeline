@@ -3,3 +3,4 @@ logs/
 __marimo__/
 .venv/
 .env.*
+app/__pycache__/
