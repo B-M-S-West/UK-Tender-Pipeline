@@ -14,11 +14,18 @@ class TenderDataProcessor:
 
     @staticmethod
     def extract_cpv_info(tender: Dict) -> tuple:
-        """Extract CPV codes and descriptions"""
+        """Extract main and additional CPV codes and descriptions"""
         cpv_ids = []
         cpv_descs = []
-        items = tender.get('items', [])
         
+        # Main CPV classification
+        main_cpv = tender.get("classification")
+        if main_cpv.get('scheme') == 'CPV':
+            cpv_ids.append(main_cpv.get('id', ''))
+            cpv_descs.append(main_cpv.get('description', ''))
+        
+        # Additional CPV classifications
+        items = tender.get('items', [])
         for item in items:
             for ac in item.get('additionalClassifications', []):
                 if ac.get('scheme') == 'CPV':
